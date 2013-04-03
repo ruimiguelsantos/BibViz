@@ -1,0 +1,4 @@
+BibViz
+======
+
+BibTeX data visualization
