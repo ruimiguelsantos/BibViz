@@ -1,0 +1,116 @@
+#!/bin/bash -i
+
+bibtex="algorithmica.bib"
+
+author () {
+    	echo -en "\nNome do Autor: " 	
+    	read pick
+		./author "$pick" < ./bibs/$bibtex > ./graphviz/author
+		circo -Tpng ./graphviz/author -o graphviz/author.png
+        open ./graphviz/author.png > /dev/null 2>&1
+}
+
+crtable () {
+	        echo -en "\nNome do ficheiro (output): "    
+		read pick
+		    ./tohtml "$bibtex" < bibs/$bibtex > /Library/WebServer/Documents/$pick.html
+		    open /Library/WebServer/Documents/$pick.html > /dev/null 2>&1
+}
+
+countertable() {
+	echo -en "\nNome do ficheiro (output): "
+	read pick
+	    ./counter < bibs/$bibtex > /Library/WebServer/Documents/$pick.html
+	    open /Library/WebServer/Documents/$pick.html > /dev/null 2>&1
+}
+
+keyword () {
+	echo -en "\nKeyword: "
+	read key
+	./keyword < bibs/$bibtex | gsed -r ':a;N;$!ba;s/((^|\n)( +))/ /g' | gsed -r 's/^" /"/' > key_temp.dot
+	grep "\"$key\" --" key_temp.dot > temp.txt && grep " -- \"$key\"" key_temp.dot >> temp.txt
+	cat temp.txt | sort | uniq -i > temp.dot
+	echo -e "graph g {" | cat - temp.dot > key.dot && echo -e '\n}\n' >> key.dot
+	echo "A gerar grafo de relações da keyword $key..."
+	dot -Tpng key.dot -o key.png
+	wait ${!}
+	open key.png
+	rm key_temp.dot temp.txt temp.dot
+}
+
+mapa () {
+	./keyword < bibs/$bibtex | gsed -r ':a;N;$!ba;s/((^|\n)( +))/ /g' | gsed -r 's/^" /"/' > key_temp.dot
+	echo 'A gerar grafo de relações das keywords...'
+	fdp -Tpng key_temp.dot -o ${bibtex%.*}.png
+	wait ${!}
+	open ${bibtex%.*}.png
+	rm key_temp.dot
+}
+
+chgbib () {
+	goBack="voltar"
+	cd bibs/
+	while [ $goBack != "yes" ]
+	do
+		
+		echo "Ficheiros disponíveis (em bibs/):"
+		ls *.bib
+		echo -en "\nAlterar ficheiro BibTeX [0 - Voltar]: "
+		read -e bib
+		if [[ (-e $bib) && (${bib: -4} == ".bib") ]];
+			then
+			   bibtex=$bib
+			   cd ..
+			   goBack="yes"
+		elif [ "$bib" == "0" ];
+			then echo -en "\n"
+			cd ..
+			goBack="yes"
+		else 
+			echo "Ficheiro não encontrado."
+			sleep 1
+			echo -en "\n"
+		fi
+	done
+}
+
+
+
+# Loop Menu
+escapeVar="quit"
+while [ $escapeVar != "yes" ] 
+do
+	echo -en "\n\nBibTeX em uso: $bibtex \n"
+	echo " "
+	echo "[1] Gerar tabela (contagem de categorias)"
+	echo "[2] Gerar tabela (categoria, chave, autor, título)"
+	echo "[3] Relacionar autores"
+	echo "[4] Relacionar keyword"
+	echo "[5] Relacionar todas as keywords (mapa de conceitos)"
+	echo "[6] Alterar BibTeX"
+	echo "[0] Sair"
+	echo -en "\n: " 	
+	read pick
+
+	case $pick in
+		1) countertable;;
+
+		2) crtable;;
+
+		3) author;;
+
+		4) keyword;;
+
+		5) mapa;;
+
+		6) chgbib;;
+	
+		0) escapeVar="yes" 
+			echo "Adeus";;
+	
+		*) echo "[\"$pick\"] Escolha inválida."
+		sleep 1 ;;
+
+	esac
+done
+
